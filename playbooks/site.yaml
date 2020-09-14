@@ -1,0 +1,52 @@
+- hosts: nxos101
+  gather_facts: False
+  vars:
+    netconf_template:
+      System:
+          "@xmlns": "http://cisco.com/ns/yang/cisco-nx-os-device"
+          intf-items:
+            phys-items:
+              PhysIf-list:
+                id: eth1/10
+  tasks:
+  
+  - name: Get the config using the filter
+    ansible.netcommon.netconf_get:
+      source: running
+      filter: "{{ netconf_template|cidrblock.dev.to_xml }}"
+    register: config
+  
+  - name: Convert the xml config to a dict
+    set_fact:
+      config: "{{ config['stdout'] | cidrblock.dev.from_xml }}"
+
+  - name: Update
+    cidrblock.dev.update_fact:
+      config.data.System.intf-items.phys-items.PhysIf-list.descr: "{{ 100 | random }}"
+    register: updated
+  
+  - name: Set the fact for the revised config
+    set_fact:
+      revised_config:
+        config:
+          System: "{{ updated['config']['data']['System'] }}"
+  
+  - name: Apply the new configuration
+    ansible.netcommon.netconf_config:
+      content: "{{ revised_config|cidrblock.dev.to_xml }}"
+
+  - name: Get the config using the filter
+    ansible.netcommon.netconf_get:
+      source: running
+      filter: "{{ netconf_template|cidrblock.dev.to_xml }}"
+    register: after
+  
+  - name: Convert the xml config to a dict
+    set_fact:
+      after: "{{ after['stdout'] | cidrblock.dev.from_xml }}"
+
+  - name: Show the differences in a dot delimited format
+    cidrblock.dev.fact_diff:
+      before: "{{ config|cidrblock.dev.to_dotted }}"
+      after: "{{ after|cidrblock.dev.to_dotted }}"
+  

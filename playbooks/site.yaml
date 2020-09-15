@@ -19,10 +19,11 @@
   - name: Convert the xml config to a dict
     set_fact:
       config: "{{ config['stdout'] | cidrblock.dev.from_xml }}"
+      new_descr: "{{ 100 | random }}"
 
   - name: Update
     cidrblock.dev.update_fact:
-      config.data.System.intf-items.phys-items.PhysIf-list.descr: "{{ 100 | random }}"
+      config.data.System.intf-items.phys-items.PhysIf-list.descr: "{{ new_descr }}"
     register: updated
   
   - name: Set the fact for the revised config
@@ -49,4 +50,41 @@
     cidrblock.dev.fact_diff:
       before: "{{ config|cidrblock.dev.to_dotted }}"
       after: "{{ after|cidrblock.dev.to_dotted }}"
+  
+  - name: Validate the configuration change
+    cidrblock.dev.validate:
+      vars: "{{ after }}"
+      schema:
+        type: object
+        description: Confirm the new interface description
+        required:
+        - data
+        properties:
+          data:
+            type: object
+            required:
+            - System
+            properties:
+              System:
+                type: object
+                requred:
+                - intf-items
+                properties:
+                  intf-items:
+                    type: object
+                    required:
+                    - phys-items
+                    properties:
+                      phys-items:
+                        type: object
+                        required:
+                        - PhysIf-list
+                        properties:
+                          PhysIf-list:
+                            type: object
+                            required:
+                            - descr
+                            properties:
+                              descr:
+                                const: "{{ new_descr }}"
   

@@ -1,7 +1,7 @@
 - hosts: nxos101
   gather_facts: False
   vars:
-    netconf_template:
+    filter:
       System:
           "@xmlns": "http://cisco.com/ns/yang/cisco-nx-os-device"
           intf-items:
@@ -13,7 +13,7 @@
   - name: Get the config using the filter
     cidrblock.dev.netconf_get:
       source: running
-      filter: "{{ netconf_template }}"
+      filter: "{{ filter }}"
       display: native
     register: config
 
@@ -39,7 +39,7 @@
   - name: Get the config using the filter
     cidrblock.dev.netconf_get:
       source: running
-      filter: "{{ netconf_template }}"
+      filter: "{{ filter }}"
       display: native
     register: after
 

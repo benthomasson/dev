@@ -31,14 +31,13 @@ class ActionModule(ActionBase):
 
     @staticmethod
     def generate_argspec():
-        """ Generate an argspec
-        """
+        """Generate an argspec"""
         argspec = convert_doc_to_ansible_module_kwargs(DOCUMENTATION)
         # argspec = dict_merge(argspec, ARGSPEC_CONDITIONALS)
         return argspec
 
     def _fail_json(self, msg):
-        """ Replace the AnsibleModule fai_json here
+        """Replace the AnsibleModule fai_json here
 
         :param msg: The message for the failure
         :type msg: str
@@ -47,7 +46,7 @@ class ActionModule(ActionBase):
         raise AnsibleActionFail(msg)
 
     def _check_argspec(self):
-        """ Load the doc and convert
+        """Load the doc and convert
         Add the root conditionals to what was returned from the conversion
         and instantiate an AnsibleModule to validate
         """
@@ -59,8 +58,7 @@ class ActionModule(ActionBase):
         basic.AnsibleModule(**argspec)
 
     def _check_reqs(self):
-        """ Check the prerequisites
-        """
+        """Check the prerequisites"""
         errors = []
         if not HAS_JSONSCHEMA:
             errors.append(missing_required_lib("jsonschema"))
@@ -75,20 +73,16 @@ class ActionModule(ActionBase):
 
     def _validate(self, schema, data):
         validator = Draft7Validator(schema)
-        validation_errors = sorted(
-            validator.iter_errors(data), key=lambda e: e.path
-        )
+        validation_errors = sorted(validator.iter_errors(data), key=lambda e: e.path)
         if validation_errors:
             self._result["failed"] = True
-            self._result['msg'] = "Validation errors were found. "
-            self._result['errors'] = []
+            self._result["msg"] = "Validation errors were found. "
+            self._result["errors"] = []
             for validation_error in validation_errors:
                 if isinstance(validation_error, ValidationError):
                     error = {
                         "message": validation_error.message,
-                        "var_path": self._to_path(
-                            validation_error.relative_path
-                        ),
+                        "var_path": self._to_path(validation_error.relative_path),
                         "schema_path": self._to_path(
                             validation_error.relative_schema_path
                         ),
@@ -99,10 +93,11 @@ class ActionModule(ActionBase):
                     }
 
                     self._result["errors"].append(error)
-                    var_path = error['var_path'] or 'root'
-                    error_msg = "At '{var_path}' {ve}. ".format(var_path=var_path, ve=validation_error.message)
+                    var_path = error["var_path"] or "root"
+                    error_msg = "At '{var_path}' {ve}. ".format(
+                        var_path=var_path, ve=validation_error.message
+                    )
                     self._result["msg"] += error_msg
-
 
     def run(self, tmp=None, task_vars=None):
         self._check_argspec()
@@ -110,9 +105,7 @@ class ActionModule(ActionBase):
         if self._result.get("failed"):
             return self._result
 
-        self._validate(
-            schema=self._task.args["schema"], data=self._task.args["vars"]
-        )
+        self._validate(schema=self._task.args["schema"], data=self._task.args["vars"])
         if self._result.get("failed"):
             return self._result
 

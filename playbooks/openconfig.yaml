@@ -1,10 +1,14 @@
-- hosts: eos101
+- hosts: eos101:nxos101
   gather_facts: False
   vars:
+    interface:
+      eos: Ethernet2
+      nxos: eth1/1
     filter:
       interfaces:
+        "@xmlns": "http://openconfig.net/yang/interfaces"
         interface:
-          name: Ethernet2
+          name: "{{ interface[ansible_network_os.split('.')[-1]] }}"
    
   tasks:
   - name: Get the config using the filter

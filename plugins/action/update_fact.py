@@ -62,7 +62,7 @@ class ActionModule(ActionBase):
             new_obj = obj[first]
             self.set_value(new_obj, rest, val)
         else:
-            if obj[first] != val:
+            if obj.get(first) != val:
                 self._result["changed"] = True
                 obj[first] = val
 

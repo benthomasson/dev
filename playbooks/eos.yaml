@@ -1,0 +1,70 @@
+- hosts: eos101
+  gather_facts: False
+  vars:
+    filter:
+      interfaces:
+        interface:
+          name: Ethernet2
+   
+  tasks:
+  - name: Get the config using the filter
+    cidrblock.dev.netconf_get:
+      source: running
+      filter: "{{ filter }}"
+      display: native
+    register: config
+  
+  - name: Random description
+    set_fact:
+      new_descr: "{{ 100 | random }}"
+
+  - name: Update
+    cidrblock.dev.update_fact:
+      config.output.data.interfaces.interface.config.description: "{{ new_descr }}"
+    register: updated
+  
+  - name: Set the fact for the revised config
+    set_fact:
+      revised_config:
+        config: 
+          interfaces: "{{ updated['config']['output']['data']['interfaces'] }}"
+  
+  - name: Apply the new configuration
+    cidrblock.dev.netconf_config:
+      content: "{{ revised_config }}"
+
+  - name: Get the config using the filter
+    cidrblock.dev.netconf_get:
+      source: running
+      filter: "{{ filter }}"
+      display: native
+    register: after
+
+  - name: Show the differences in a dot delimited format
+    cidrblock.dev.fact_diff:
+      before: "{{ config['output'] }}"
+      after: "{{ after['output'] }}"
+      dotted: True
+  
+  - name: Validate the configuration change
+    cidrblock.dev.validate:
+      vars: "{{ after['output'] }}"
+      schema:
+        type: object
+        description: Confirm the new interface description
+        required:
+        - data
+        properties:
+          data:
+            type: object
+            required:
+            - interfaces
+            properties:
+              interfaces:
+                type: object
+                requred:
+                - description
+                properties:
+                  description:
+                    const: "{{ new_descr }}"
+  

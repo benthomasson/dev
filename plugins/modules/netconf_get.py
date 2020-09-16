@@ -202,10 +202,14 @@ def main():
         source=dict(choices=["running", "candidate", "startup"]),
         filter=dict(type="raw"),
         display=dict(choices=["json", "native", "pretty", "xml"]),
-        lock=dict(default="never", choices=["never", "always", "if-supported"]),
+        lock=dict(
+            default="never", choices=["never", "always", "if-supported"]
+        ),
     )
 
-    module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True)
+    module = AnsibleModule(
+        argument_spec=argument_spec, supports_check_mode=True
+    )
 
     capabilities = get_capabilities(module)
     operations = capabilities["device_operations"]
@@ -223,7 +227,9 @@ def main():
     display = module.params["display"]
 
     if source == "candidate" and not operations.get("supports_commit", False):
-        module.fail_json(msg="candidate source is not supported on this device")
+        module.fail_json(
+            msg="candidate source is not supported on this device"
+        )
 
     if source == "startup" and not operations.get("supports_startup", False):
         module.fail_json(msg="startup source is not supported on this device")

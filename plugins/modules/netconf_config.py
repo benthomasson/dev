@@ -327,7 +327,9 @@ def main():
         ),
         source_datastore=dict(aliases=["source"]),
         format=dict(choices=["xml", "text"], default="xml"),
-        lock=dict(choices=["never", "always", "if-supported"], default="always"),
+        lock=dict(
+            choices=["never", "always", "if-supported"], default="always"
+        ),
         default_operation=dict(choices=["merge", "replace", "none"]),
         confirm=dict(type="int", default=0),
         confirm_commit=dict(type="bool", default=False),
@@ -445,12 +447,16 @@ def main():
     operations = capabilities["device_operations"]
 
     supports_commit = operations.get("supports_commit", False)
-    supports_writable_running = operations.get("supports_writable_running", False)
+    supports_writable_running = operations.get(
+        "supports_writable_running", False
+    )
     supports_startup = operations.get("supports_startup", False)
 
     # identify target datastore
     if target == "candidate" and not supports_commit:
-        module.fail_json(msg=":candidate is not supported by this netconf server")
+        module.fail_json(
+            msg=":candidate is not supported by this netconf server"
+        )
     elif target == "running" and not supports_writable_running:
         module.fail_json(
             msg=":writable-running is not supported by this netconf server"
@@ -473,7 +479,9 @@ def main():
         )
 
     if confirm_commit and not operations.get("supports_confirm_commit", False):
-        module.fail_json(msg="confirm commit is not supported by Netconf server")
+        module.fail_json(
+            msg="confirm commit is not supported by Netconf server"
+        )
 
     if (confirm > 0) and not operations.get("supports_confirm_commit", False):
         module.fail_json(
@@ -482,7 +490,9 @@ def main():
         )
 
     if validate and not operations.get("supports_validate", False):
-        module.fail_json(msg="validate is not supported by this netconf server")
+        module.fail_json(
+            msg="validate is not supported by this netconf server"
+        )
 
     if filter_type == "xpath" and not operations.get("supports_xpath", False):
         module.fail_json(
@@ -500,7 +510,8 @@ def main():
     else:
         # lock is requested (always/if-supported) but not supported => issue warning
         module.warn(
-            "lock operation on '%s' source is not supported on this device" % target
+            "lock operation on '%s' source is not supported on this device"
+            % target
         )
         execute_lock = lock == "always"
 
@@ -513,7 +524,9 @@ def main():
     locked = False
     try:
         if module.params["backup"]:
-            response = get_config(module, target, filter_spec, lock=execute_lock)
+            response = get_config(
+                module, target, filter_spec, lock=execute_lock
+            )
             before = to_text(
                 tostring(response), errors="surrogate_then_replace"
             ).strip()
@@ -568,7 +581,9 @@ def main():
                 if not module.check_mode:
                     confirm_timeout = confirm if confirm > 0 else None
                     confirmed_commit = True if confirm_timeout else False
-                    conn.commit(confirmed=confirmed_commit, timeout=confirm_timeout)
+                    conn.commit(
+                        confirmed=confirmed_commit, timeout=confirm_timeout
+                    )
                 else:
                     conn.discard_changes()
 
@@ -593,7 +608,9 @@ def main():
                     }
 
     except ConnectionError as e:
-        module.fail_json(msg=to_text(e, errors="surrogate_then_replace").strip())
+        module.fail_json(
+            msg=to_text(e, errors="surrogate_then_replace").strip()
+        )
     finally:
         if locked:
             conn.unlock(target=target)

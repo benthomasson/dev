@@ -14,10 +14,8 @@ except ImportError:
 
 def _check_reqs(filter_name):
     if not HAS_XMLTODICT:
-        msg = (
-            "Filter plugin `{filter_name}` returned the following error: {err}".format(
-                filter_name=filter_name, err=missing_required_lib("xmltodict")
-            )
+        msg = "Filter plugin `{filter_name}` returned the following error: {err}".format(
+            filter_name=filter_name, err=missing_required_lib("xmltodict")
         )
         raise AnsibleFilterError(msg)
 

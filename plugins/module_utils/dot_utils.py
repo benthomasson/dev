@@ -1,4 +1,7 @@
-from ansible.module_utils.common._collections_compat import Mapping, MutableMapping
+from ansible.module_utils.common._collections_compat import (
+    Mapping,
+    MutableMapping,
+)
 
 
 def to_dotted(nested_json):

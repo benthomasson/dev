@@ -1,14 +1,13 @@
 from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
-import copy
-import json
 import re
 from ansible.plugins.action import ActionBase
-from ansible.module_utils import basic
-from ansible.module_utils._text import to_bytes
 from ansible.errors import AnsibleModuleError
-from collections.abc import MutableMapping
+from ansible.module_utils.common._collections_compat import (
+    MutableMapping,
+    MutableSequence,
+)
 
 
 class ActionModule(ActionBase):
@@ -16,71 +15,77 @@ class ActionModule(ActionBase):
 
     def __init__(self, *args, **kwargs):
         super(ActionModule, self).__init__(*args, **kwargs)
+        self._supports_async = True
         self._updates = None
         self._result = None
 
     def _check_argspec(self):
-        # pylint: disable=W0212
-        basic._ANSIBLE_ARGS = to_bytes(
-            json.dumps({"ANSIBLE_MODULE_ARGS": self._task.args})
-        )
-        # pylint: enable=W0212
-        spec = {k: v for k, v in ARGSPEC.items() if k in VALID_MODULE_KWARGS}
-        basic.AnsibleModule.fail_json = self._fail_json
-        basic.AnsibleModule(**spec)
-
-    def _fail_json(self, msg):
-        msg = msg.replace("(basic.py)", self._task.action)
-        raise AnsibleModuleError(msg)
-
-    def _set_vars(self):
-        self._updates = self._task.args.get("updates")
+        if not isinstance(self._task.args, dict):
+            msg = "Update_facts requires a dictionary of key value pairs"
+            raise AnsibleModuleError(msg)
 
     @staticmethod
-    def set_value_at_path(fact, path, value):
-        obj = copy.deepcopy(fact)
-
-        *parts, last = path.split(".")
-
-        for part in parts:
-            if isinstance(obj, MutableMapping):
-                obj = obj[part]
+    def _field_split(path):
+        pattern = re.compile(r"\.(?![^[]*\])|\]\[|\[|\]")
+        splitted = list(filter(None, pattern.split(path)))
+        result = []
+        for part in splitted:
+            if part.isnumeric():
+                result.append(int(part))
             else:
-                obj = obj[int(part)]
-
-        if isinstance(obj, MutableMapping):
-            obj[last] = value
-        else:
-            obj[int(last)] = value
-        return obj
+                result.append(re.sub("['\"]", "", part))
+        return result
 
     def set_value(self, obj, path, val):
-        first, _sep, rest = path.partition(".")
-        if first.isnumeric():
-            first = int(first)
+        first, rest = path[0], path[1:]
         if rest:
             new_obj = obj[first]
             self.set_value(new_obj, rest, val)
         else:
-            if obj.get(first) != val:
-                self._result["changed"] = True
-                obj[first] = val
+            if isinstance(obj, MutableMapping):
+                if obj.get(first) != val:
+                    self._result["changed"] = True
+                    obj[first] = val
+            elif isinstance(obj, MutableSequence):
+                if not isinstance(first, int):
+                    msg = (
+                        "Error: {obj} is a list, "
+                        "but index provided was not an integer: '{first}'"
+                    ).format(obj=obj, first=first)
+                    raise AnsibleModuleError(msg)
+                if first > len(obj):
+                    msg = "Error: {obj} not long enough for item #{first} to be set.".format(
+                        obj=obj, first=first
+                    )
+                    raise AnsibleModuleError(msg)
+                if first == len(obj):
+                    obj.append(val)
+                    self._result["changed"] = True
+                else:
+                    obj[first] = val
+                    self._result["changed"] = True
 
     def run(self, tmp=None, task_vars=None):
-        self._task.diff = True
+        self._task.diff = False
         self._result = super(ActionModule, self).run(tmp, task_vars)
-        self._result["ansible_facts"] = {}
-        # self._check_argspec()
-        # self._set_vars()
-
-        # facts = {}
-
+        self._check_argspec()
         results = set()
         for key, value in self._task.args.items():
-            obj, path = key.split(".", 1)
+            parts = self._field_split(key)
+            if len(parts) <= 1:
+                msg = "update_fact requires a path in dot or bracket notation Found '{key}'".format(
+                    key=key
+                )
+                raise AnsibleModuleError(msg)
+
+            obj, path = parts[0], parts[1:]
             results.add(obj)
-            path = re.sub(r"\[(\d+)\]", r".\1", path)
             retrieved = task_vars["vars"].get(obj)
+            if not retrieved:
+                msg = "'{obj}' was not found in the current facts.".format(
+                    obj=obj
+                )
+                raise AnsibleModuleError(msg)
             self.set_value(retrieved, path, value)
 
         for key in results:

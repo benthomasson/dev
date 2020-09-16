@@ -1,5 +1,7 @@
 - hosts: eos101:nxos101
   gather_facts: False
+  collections:
+  - cidrblock.dev
   vars:
     interface:
       eos: Ethernet2
@@ -23,7 +25,7 @@
       new_descr: "{{ 100 | random }}"
 
   - name: Update
-    cidrblock.dev.update_fact:
+    update_fact:
       config.output.data.interfaces.interface.config.description: "{{ new_descr }}"
     register: updated
   

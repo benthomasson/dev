@@ -33,35 +33,44 @@ class ActionModule(ActionBase):
         try:
             while que:
                 field = ""
+                # found a '.', move to the next character
                 if val == ".":
                     val = que.pop(0)
+                # found a '[', pop until ']' and then get the next
                 if val == "[":
                     val = que.pop(0)
                     while val != "]":
                         field += val
                         val = que.pop(0)
                     val = que.pop(0)
+                # found a ", pop until " and then get the next
                 elif val == "'":
                     val = que.pop(0)
                     while val != "'":
                         field += val
                         val = que.pop(0)
                     val = que.pop(0)
+                # found a ', pop until ' and then get the next
                 elif val == '"':
                     val = que.pop(0)
                     while val != '"':
                         field += val
                         val = que.pop(0)
                     val = que.pop(0)
+                # in a field, pop unitl ' or [, which indicates next field
                 else:
                     while val not in [".", "["]:
                         field += val
                         val = que.pop(0)
                 try:
+                    # make numbers numbers
                     fields.append(ast.literal_eval(field))
                 except Exception:
+                    # or strip the quotes
                     fields.append(re.sub("['\"]", "", field))
         except IndexError:
+            # pop'ed past the end of the que
+            # so add the final field
             try:
                 fields.append(ast.literal_eval(field))
             except Exception:

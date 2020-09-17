@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
+import ast
 import re
 from ansible.plugins.action import ActionBase
 from ansible.errors import AnsibleModuleError
@@ -26,20 +27,58 @@ class ActionModule(ActionBase):
 
     @staticmethod
     def _field_split(path):
-        pattern = re.compile(r"\.(?![^[]*\])|\]\[|\[|\]")
-        splitted = list(filter(None, pattern.split(path)))
-        result = []
-        for part in splitted:
-            if part.isnumeric():
-                result.append(int(part))
-            else:
-                result.append(re.sub("['\"]", "", part))
-        return result
+        que = list(path)
+        val = que.pop(0)
+        fields = []
+        try:
+            while que:
+                field = ""
+                if val == ".":
+                    val = que.pop(0)
+                if val == "[":
+                    val = que.pop(0)
+                    while val != "]":
+                        field += val
+                        val = que.pop(0)
+                    val = que.pop(0)
+                elif val == "'":
+                    val = que.pop(0)
+                    while val != "'":
+                        field += val
+                        val = que.pop(0)
+                    val = que.pop(0)
+                elif val == '"':
+                    val = que.pop(0)
+                    while val != '"':
+                        field += val
+                        val = que.pop(0)
+                    val = que.pop(0)
+                else:
+                    while val not in [".", "["]:
+                        field += val
+                        val = que.pop(0)
+                try:
+                    fields.append(ast.literal_eval(field))
+                except Exception:
+                    fields.append(re.sub("['\"]", "", field))
+        except IndexError:
+            try:
+                fields.append(ast.literal_eval(field))
+            except Exception:
+                fields.append(re.sub("['\"]", "", field))
+        return fields
 
     def set_value(self, obj, path, val):
         first, rest = path[0], path[1:]
         if rest:
-            new_obj = obj[first]
+            try:
+                new_obj = obj[first]
+            except KeyError:
+                msg = (
+                    "Error: the key '{first}' was not found "
+                    "in {obj}.".format(obj=obj, first=first)
+                )
+                raise AnsibleModuleError(msg)
             self.set_value(new_obj, rest, val)
         else:
             if isinstance(obj, MutableMapping):
@@ -71,22 +110,30 @@ class ActionModule(ActionBase):
         self._check_argspec()
         results = set()
         for key, value in self._task.args.items():
+            print(key, value)
             parts = self._field_split(key)
-            if len(parts) <= 1:
-                msg = "update_fact requires a path in dot or bracket notation Found '{key}'".format(
-                    key=key
-                )
-                raise AnsibleModuleError(msg)
-
-            obj, path = parts[0], parts[1:]
-            results.add(obj)
-            retrieved = task_vars["vars"].get(obj)
-            if not retrieved:
-                msg = "'{obj}' was not found in the current facts.".format(
-                    obj=obj
-                )
-                raise AnsibleModuleError(msg)
-            self.set_value(retrieved, path, value)
+            if len(parts) == 1:
+                obj = parts[0]
+                results.add(obj)
+                retrieved = task_vars["vars"].get(obj)
+                if not retrieved:
+                    msg = "'{obj}' was not found in the current facts.".format(
+                        obj=obj
+                    )
+                    raise AnsibleModuleError(msg)
+                if retrieved != value:
+                    task_vars["vars"][obj] = value
+                    self._result["changed"] = True
+            else:
+                obj, path = parts[0], parts[1:]
+                results.add(obj)
+                retrieved = task_vars["vars"].get(obj)
+                if not retrieved:
+                    msg = "'{obj}' was not found in the current facts.".format(
+                        obj=obj
+                    )
+                    raise AnsibleModuleError(msg)
+                self.set_value(retrieved, path, value)
 
         for key in results:
             value = task_vars["vars"].get(key)

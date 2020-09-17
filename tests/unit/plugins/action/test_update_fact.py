@@ -5,8 +5,7 @@ from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
 
-# import os
-# import tempfile
+
 from ansible.playbook.task import Task
 from ansible.template import Templar
 
@@ -21,6 +20,16 @@ from ansible_collections.ansible.netcommon.tests.unit.mock.loader import (
 from ansible_collections.cidrblock.dev.plugins.action.update_fact import (
     ActionModule,
 )
+
+SPLIT_TESTS = [
+    ('a.b["4.4"][0]["1"].5[\'foo\']', ["a", "b", "4.4", 0, "1", 5, "foo"]),
+    ("a.b[4.4][0][\"1\"].5['foo']", ["a", "b", 4.4, 0, "1", 5, "foo"]),
+    ("a.['127.0.0.1']", ["a", "127.0.0.1"]),
+    ("a.'127.0.0.1'", ["a", "127.0.0.1"]),
+    ("a.b.'4.4'.c.d.e", ["a", "b", 4.4, "c", "d", "e"]),
+    ("a.b['4.4'].c.d.e", ["a", "b", "4.4", "c", "d", "e"]),
+    ("a.b[4.4].c.d.e", ["a", "b", 4.4, "c", "d", "e"]),
+]
 
 
 class TestUpdate_Fact(unittest.TestCase):
@@ -61,19 +70,15 @@ class TestUpdate_Fact(unittest.TestCase):
 
     def test_fields(self):
         """Check the parsing of a path into it's parts"""
-        path = 'a.b["4.4"][0]["1"].5[\'foo\']'
-        result = self._plugin._field_split(path)
-        expected = ["a", "b", "4.4", 0, "1", 5, "foo"]
-        self.assertEqual(result, expected)
+        for path, expected in SPLIT_TESTS:
+            result = self._plugin._field_split(path)
+            self.assertEqual(result, expected)
 
     def test_missing_var(self):
         """Check for a missing fact"""
         self._plugin._task.args = {"a.b.c": 5}
         with self.assertRaises(Exception) as error:
             self._plugin.run(task_vars={"vars": {}})
-        import q
-
-        q(error)
         self.assertIn(
             "'a' was not found in the current facts.", str(error.exception)
         )
@@ -84,8 +89,9 @@ class TestUpdate_Fact(unittest.TestCase):
         task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
         self._plugin._task.args = {"a.b": 5}
         result = self._plugin.run(task_vars=task_vars)
-        task_vars["vars"]["a"]["b"] = 5
-        expected = {**task_vars["vars"], "changed": True}
+        expected = task_vars["vars"]
+        expected["a"]["b"] = 5
+        expected.update({"changed": True})
         self.assertEqual(result, expected)
 
     def test_run_1(self):
@@ -94,8 +100,9 @@ class TestUpdate_Fact(unittest.TestCase):
         task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
         self._plugin._task.args = {"a.b.1": 5}
         result = self._plugin.run(task_vars=task_vars)
-        task_vars["vars"]["a"]["b"][1] = 5
-        expected = {**task_vars["vars"], "changed": True}
+        expected = task_vars["vars"]
+        expected["a"]["b"][1] = 5
+        expected.update({"changed": True})
         self.assertEqual(result, expected)
 
     def test_run_2(self):
@@ -103,8 +110,9 @@ class TestUpdate_Fact(unittest.TestCase):
         task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
         self._plugin._task.args = {"a.b.3": 4}
         result = self._plugin.run(task_vars=task_vars)
-        task_vars["vars"]["a"]["b"].append(4)
-        expected = {**task_vars["vars"], "changed": True}
+        expected = task_vars["vars"]
+        expected["a"]["b"].append(4)
+        expected.update({"changed": True})
         self.assertEqual(result, expected)
 
     def test_run_3(self):
@@ -112,8 +120,9 @@ class TestUpdate_Fact(unittest.TestCase):
         task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
         self._plugin._task.args = {"a['b'][3]": 4}
         result = self._plugin.run(task_vars=task_vars)
-        task_vars["vars"]["a"]["b"].append(4)
-        expected = {**task_vars["vars"], "changed": True}
+        expected = task_vars["vars"]
+        expected["a"]["b"].append(4)
+        expected.update({"changed": True})
         self.assertEqual(result, expected)
 
     def test_run_4(self):
@@ -121,8 +130,9 @@ class TestUpdate_Fact(unittest.TestCase):
         task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
         self._plugin._task.args = {'a["b"][3]': 4}
         result = self._plugin.run(task_vars=task_vars)
-        task_vars["vars"]["a"]["b"].append(4)
-        expected = {**task_vars["vars"], "changed": True}
+        expected = task_vars["vars"]
+        expected["a"]["b"].append(4)
+        expected.update({"changed": True})
         self.assertEqual(result, expected)
 
     def test_run_5(self):
@@ -130,8 +140,9 @@ class TestUpdate_Fact(unittest.TestCase):
         task_vars = {"vars": {"a": {0: [1, 2, 3]}}}
         self._plugin._task.args = {"a.0.0": 0}
         result = self._plugin.run(task_vars=task_vars)
-        task_vars["vars"]["a"][0][0] = 0
-        expected = {**task_vars["vars"], "changed": True}
+        expected = task_vars["vars"]
+        expected["a"][0][0] = 0
+        expected.update({"changed": True})
         self.assertEqual(result, expected)
 
     def test_run_6(self):
@@ -139,6 +150,7 @@ class TestUpdate_Fact(unittest.TestCase):
         task_vars = {"vars": {"a": {"0": [1, 2, 3]}}}
         self._plugin._task.args = {'a.["0"].0': 0}
         result = self._plugin.run(task_vars=task_vars)
-        task_vars["vars"]["a"]["0"][0] = 0
-        expected = {**task_vars["vars"], "changed": True}
+        expected = task_vars["vars"]
+        expected["a"]["0"][0] = 0
+        expected.update({"changed": True})
         self.assertEqual(result, expected)

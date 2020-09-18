@@ -1,1 +1,0 @@
-/home/bthornto/github/xml_filters/venv/lib64/python3.8/site-packages/ansible_test/_data/sanity/import/importer.py

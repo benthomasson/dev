@@ -9,6 +9,8 @@ from ansible.module_utils.common._collections_compat import (
     MutableMapping,
     MutableSequence,
 )
+from ansible.module_utils._text import to_native
+from jinja2 import Template, TemplateSyntaxError
 
 
 class ActionModule(ActionBase):
@@ -24,6 +26,21 @@ class ActionModule(ActionBase):
         if not isinstance(self._task.args, dict):
             msg = "Update_facts requires a dictionary of key value pairs"
             raise AnsibleModuleError(msg)
+
+    def _ensure_valid_jinja(self):
+        errors = []
+        for key, _value in self._task.args.items():
+            try:
+                Template("{{" + key + "}}")
+            except TemplateSyntaxError as exc:
+                error = (
+                    "While processing '{key}' found malformed key reference."
+                    " Ensure syntax follows valid jinja format. The error was:"
+                    " {error}"
+                ).format(key=key, error=to_native(exc))
+                errors.append(error)
+        if errors:
+            raise AnsibleModuleError(" ".join(errors))
 
     @staticmethod
     def _field_split(path):
@@ -43,21 +60,6 @@ class ActionModule(ActionBase):
                         field += val
                         val = que.pop(0)
                     val = que.pop(0)
-                # found a ", pop until " and then get the next
-                elif val == "'":
-                    val = que.pop(0)
-                    while val != "'":
-                        field += val
-                        val = que.pop(0)
-                    val = que.pop(0)
-                # found a ', pop until ' and then get the next
-                elif val == '"':
-                    val = que.pop(0)
-                    while val != '"':
-                        field += val
-                        val = que.pop(0)
-                    val = que.pop(0)
-                # in a field, pop unitl ' or [, which indicates next field
                 else:
                     while val not in [".", "["]:
                         field += val
@@ -118,8 +120,8 @@ class ActionModule(ActionBase):
         self._result = super(ActionModule, self).run(tmp, task_vars)
         self._check_argspec()
         results = set()
+        self._ensure_valid_jinja()
         for key, value in self._task.args.items():
-            print(key, value)
             parts = self._field_split(key)
             if len(parts) == 1:
                 obj = parts[0]

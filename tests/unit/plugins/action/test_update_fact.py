@@ -5,7 +5,7 @@ from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
 
-
+from jinja2 import Template, UndefinedError, TemplateSyntaxError
 from ansible.playbook.task import Task
 from ansible.template import Templar
 
@@ -21,14 +21,53 @@ from ansible_collections.cidrblock.dev.plugins.action.update_fact import (
     ActionModule,
 )
 
-SPLIT_TESTS = [
-    ('a.b["4.4"][0]["1"].5[\'foo\']', ["a", "b", "4.4", 0, "1", 5, "foo"]),
-    ("a.b[4.4][0][\"1\"].5['foo']", ["a", "b", 4.4, 0, "1", 5, "foo"]),
-    ("a.['127.0.0.1']", ["a", "127.0.0.1"]),
-    ("a.'127.0.0.1'", ["a", "127.0.0.1"]),
-    ("a.b.'4.4'.c.d.e", ["a", "b", 4.4, "c", "d", "e"]),
-    ("a.b['4.4'].c.d.e", ["a", "b", "4.4", "c", "d", "e"]),
-    ("a.b[4.4].c.d.e", ["a", "b", 4.4, "c", "d", "e"]),
+VALID_DATA = {
+    "a": {
+        "b": {"4.4": [{"1": {5: {"foo": 123}}}], 5.5: "float5.5"},
+        "127.0.0.1": "localhost",
+    },
+}
+
+VALID_TESTS = [
+    {
+        "path": 'a.b["4.4"][0]["1"].5[\'foo\']',
+        "split": ["a", "b", "4.4", 0, "1", 5, "foo"],
+        "template_result": "123",
+    },
+    {
+        "path": 'a.b["4.4"][0]["1"].5[\'foo\']',
+        "split": ["a", "b", "4.4", 0, "1", 5, "foo"],
+        "template_result": "123",
+    },
+    {
+        "path": "a.b[5.5]",
+        "split": ["a", "b", 5.5],
+        "template_result": "float5.5",
+    },
+    {
+        "path": "a['127.0.0.1']",
+        "split": ["a", "127.0.0.1"],
+        "template_result": "localhost",
+    },
+    {
+        "path": "a.b['4.4'].0['1'].5['foo']",
+        "split": ["a", "b", "4.4", 0, "1", 5, "foo"],
+        "template_result": "123",
+    },
+]
+
+
+INVALID_JINJA = [
+    {
+        "path": "a.'1'",
+        "note": "quoted values are required to be in brackets",
+        "error": "expected name or number",
+    },
+    {
+        "path": "a.[1]",
+        "note": "brackets can't follow dots",
+        "error": "expected name or number",
+    },
 ]
 
 
@@ -68,11 +107,23 @@ class TestUpdate_Fact(unittest.TestCase):
             "Update_facts requires a dictionary", str(error.exception)
         )
 
+    def test_valid_jinja(self):
+        for test in VALID_TESTS:
+            tmplt = Template("{{" + test["path"] + "}}")
+            result = tmplt.render(VALID_DATA)
+            self.assertEqual(result, test["template_result"])
+
+    def test_invalid_jinja(self):
+        for test in INVALID_JINJA:
+            with self.assertRaises(TemplateSyntaxError) as error:
+                Template("{{" + test["path"] + "}}")
+            self.assertIn(test["error"], str(error.exception))
+
     def test_fields(self):
         """Check the parsing of a path into it's parts"""
-        for path, expected in SPLIT_TESTS:
-            result = self._plugin._field_split(path)
-            self.assertEqual(result, expected)
+        for stest in VALID_TESTS:
+            result = self._plugin._field_split(stest["path"])
+            self.assertEqual(result, stest["split"])
 
     def test_missing_var(self):
         """Check for a missing fact"""
@@ -85,7 +136,6 @@ class TestUpdate_Fact(unittest.TestCase):
 
     def test_run_simple(self):
         """Confirm a valid argspec passes"""
-
         task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
         self._plugin._task.args = {"a.b": 5}
         result = self._plugin.run(task_vars=task_vars)
@@ -148,9 +198,33 @@ class TestUpdate_Fact(unittest.TestCase):
     def test_run_6(self):
         """Integer dict keys as string"""
         task_vars = {"vars": {"a": {"0": [1, 2, 3]}}}
-        self._plugin._task.args = {'a.["0"].0': 0}
+        self._plugin._task.args = {'a["0"].0': 0}
         result = self._plugin.run(task_vars=task_vars)
         expected = task_vars["vars"]
         expected["a"]["0"][0] = 0
         expected.update({"changed": True})
         self.assertEqual(result, expected)
+
+    def test_run_7(self):
+        """Invalid key format"""
+        invalid = {"a.'b'": 0}
+        self._plugin._task.args = invalid
+        with self.assertRaises(Exception) as error:
+            self._plugin.run(task_vars={"vars": {}})
+        self.assertIn("malformed", str(error.exception))
+
+    def test_run_8(self):
+        """Invalid key format"""
+        invalid = {"a.['b']": 0}
+        self._plugin._task.args = invalid
+        with self.assertRaises(Exception) as error:
+            self._plugin.run(task_vars={"vars": {}})
+        self.assertIn("malformed", str(error.exception))
+
+    def test_run_9(self):
+        """Invalid key format"""
+        invalid = {".abc": 0}
+        self._plugin._task.args = invalid
+        with self.assertRaises(Exception) as error:
+            self._plugin.run(task_vars={"vars": {}})
+        self.assertIn("malformed", str(error.exception))

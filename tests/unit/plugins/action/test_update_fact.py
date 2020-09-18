@@ -68,6 +68,11 @@ INVALID_JINJA = [
         "note": "brackets can't follow dots",
         "error": "expected name or number",
     },
+    {
+        "path": 'a.b["4.4"][0]["1"]."5"[\'foo\']',
+        "note": "quoted values are required to be in brackets",
+        "error": "expected name or number",
+    },
 ]
 
 
@@ -144,9 +149,8 @@ class TestUpdate_Fact(unittest.TestCase):
         expected.update({"changed": True})
         self.assertEqual(result, expected)
 
-    def test_run_1(self):
+    def test_run_replace_in_list(self):
         """Replace in list"""
-
         task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
         self._plugin._task.args = {"a.b.1": 5}
         result = self._plugin.run(task_vars=task_vars)
@@ -155,7 +159,7 @@ class TestUpdate_Fact(unittest.TestCase):
         expected.update({"changed": True})
         self.assertEqual(result, expected)
 
-    def test_run_2(self):
+    def test_run_append_to_list(self):
         """Append to list"""
         task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
         self._plugin._task.args = {"a.b.3": 4}
@@ -165,7 +169,7 @@ class TestUpdate_Fact(unittest.TestCase):
         expected.update({"changed": True})
         self.assertEqual(result, expected)
 
-    def test_run_3(self):
+    def test_run_bracket_single_quote(self):
         """Bracket notation sigle quote"""
         task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
         self._plugin._task.args = {"a['b'][3]": 4}
@@ -175,7 +179,7 @@ class TestUpdate_Fact(unittest.TestCase):
         expected.update({"changed": True})
         self.assertEqual(result, expected)
 
-    def test_run_4(self):
+    def test_run_bracket_double_quote(self):
         """Bracket notation double quote"""
         task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
         self._plugin._task.args = {'a["b"][3]': 4}
@@ -185,7 +189,7 @@ class TestUpdate_Fact(unittest.TestCase):
         expected.update({"changed": True})
         self.assertEqual(result, expected)
 
-    def test_run_5(self):
+    def test_run_int_dict_keys(self):
         """Integer dict keys"""
         task_vars = {"vars": {"a": {0: [1, 2, 3]}}}
         self._plugin._task.args = {"a.0.0": 0}
@@ -195,7 +199,7 @@ class TestUpdate_Fact(unittest.TestCase):
         expected.update({"changed": True})
         self.assertEqual(result, expected)
 
-    def test_run_6(self):
+    def test_run_int_as_string(self):
         """Integer dict keys as string"""
         task_vars = {"vars": {"a": {"0": [1, 2, 3]}}}
         self._plugin._task.args = {'a["0"].0': 0}
@@ -205,7 +209,7 @@ class TestUpdate_Fact(unittest.TestCase):
         expected.update({"changed": True})
         self.assertEqual(result, expected)
 
-    def test_run_7(self):
+    def test_run_invalid_key_quote_after_dot(self):
         """Invalid key format"""
         invalid = {"a.'b'": 0}
         self._plugin._task.args = invalid
@@ -213,7 +217,7 @@ class TestUpdate_Fact(unittest.TestCase):
             self._plugin.run(task_vars={"vars": {}})
         self.assertIn("malformed", str(error.exception))
 
-    def test_run_8(self):
+    def test_run_invalid_key_bracket_after_dot(self):
         """Invalid key format"""
         invalid = {"a.['b']": 0}
         self._plugin._task.args = invalid
@@ -221,10 +225,108 @@ class TestUpdate_Fact(unittest.TestCase):
             self._plugin.run(task_vars={"vars": {}})
         self.assertIn("malformed", str(error.exception))
 
-    def test_run_9(self):
+    def test_run_invalid_key_start_with_dot(self):
         """Invalid key format"""
         invalid = {".abc": 0}
         self._plugin._task.args = invalid
         with self.assertRaises(Exception) as error:
             self._plugin.run(task_vars={"vars": {}})
         self.assertIn("malformed", str(error.exception))
+
+    def test_run_no_update_list(self):
+        """Confirm no change when same"""
+        task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
+        self._plugin._task.args = {"a.b.0": 1}
+        result = self._plugin.run(task_vars=task_vars)
+        expected = task_vars["vars"]
+        expected["a"]["b"] = [1, 2, 3]
+        expected.update({"changed": False})
+        self.assertEqual(result, expected)
+
+    def test_run_no_update_dict(self):
+        """Confirm no change when same"""
+        task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
+        self._plugin._task.args = {"a.b": [1, 2, 3]}
+        result = self._plugin.run(task_vars=task_vars)
+        expected = task_vars["vars"]
+        expected["a"]["b"] = [1, 2, 3]
+        expected.update({"changed": False})
+        self.assertEqual(result, expected)
+
+    def test_run_missing_key(self):
+        """Confirm error when key not found"""
+        task_vars = {"vars": {"a": {"b": 1}}}
+        self._plugin._task.args = {"a.c.d": 1}
+        with self.assertRaises(Exception) as error:
+            self._plugin.run(task_vars=task_vars)
+        self.assertIn("the key 'c' was not found", str(error.exception))
+
+    def test_run_list_not_int(self):
+        """Confirm error when key not found"""
+        task_vars = {"vars": {"a": {"b": [1]}}}
+        self._plugin._task.args = {"a.b['0']": 2}
+        with self.assertRaises(Exception) as error:
+            self._plugin.run(task_vars=task_vars)
+        self.assertIn(
+            "index provided was not an integer", str(error.exception)
+        )
+
+    def test_run_list_not_long(self):
+        """Confirm error when key not found"""
+        task_vars = {"vars": {"a": {"b": [0]}}}
+        self._plugin._task.args = {"a.b.2": 2}
+        with self.assertRaises(Exception) as error:
+            self._plugin.run(task_vars=task_vars)
+        self.assertIn(
+            "not long enough for item #2 to be set", str(error.exception)
+        )
+
+    def test_not_mutable_sequence_or_mapping(self):
+        """Confirm graceful fail when immutable object
+        This should never happen in the real world
+        """
+        obj = {"a": frozenset([1, 2, 3])}
+        path = ["a", 0]
+        val = 9
+        with self.assertRaises(Exception) as error:
+            self._plugin.set_value(obj, path, val)
+        self.assertIn("can only modify mutable objects", str(error.exception))
+
+    def test_run_not_dotted_success_one(self):
+        """Test with a not dotted key"""
+        task_vars = {"vars": {"a": 0}}
+        self._plugin._task.args = {"a": 1}
+        result = self._plugin.run(task_vars=task_vars)
+        expected = task_vars["vars"]
+        expected["a"] = 1
+        expected.update({"changed": True})
+        self.assertEqual(result, expected)
+
+    def test_run_not_dotted_success_three(self):
+        """Test with a not dotted key longer"""
+        task_vars = {"vars": {"abc": 0}}
+        self._plugin._task.args = {"abc": 1}
+        result = self._plugin.run(task_vars=task_vars)
+        expected = task_vars["vars"]
+        expected["abc"] = 1
+        expected.update({"changed": True})
+        self.assertEqual(result, expected)
+
+    def test_run_not_dotted_fail_missing(self):
+        """Test with a not dotted key, missing"""
+        task_vars = {"vars": {"abc": 0}}
+        self._plugin._task.args = {"123": 0}
+        with self.assertRaises(Exception) as error:
+            self._plugin.run(task_vars=task_vars)
+        self.assertIn(
+            "'123' was not found in the current facts", str(error.exception)
+        )
+
+    def test_run_not_dotted_success_same(self):
+        """Test with a not dotted key, no change"""
+        task_vars = {"vars": {"a": 0}}
+        self._plugin._task.args = {"a": 0}
+        result = self._plugin.run(task_vars=task_vars)
+        expected = task_vars["vars"]
+        expected.update({"changed": False})
+        self.assertEqual(result, expected)

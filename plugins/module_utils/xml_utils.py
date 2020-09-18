@@ -1,3 +1,7 @@
+from __future__ import absolute_import, division, print_function
+
+__metaclass__ = type
+
 import re
 import sys
 from ansible.module_utils.basic import missing_required_lib

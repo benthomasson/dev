@@ -23,7 +23,7 @@ options:
     required: true
 
 notes:
-  - Python2 does not guarentee the order in which updates are made. If using Python2 and making 
+  - Python2 does not guarentee the order in which updates are made. If using Python2 and making
     multiple changes to the same variable that require a specific order, use multiple tasks.
 
 author:

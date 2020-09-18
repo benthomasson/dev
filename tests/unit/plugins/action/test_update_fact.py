@@ -8,7 +8,7 @@ __metaclass__ = type
 from jinja2 import Template, UndefinedError, TemplateSyntaxError
 from ansible.playbook.task import Task
 from ansible.template import Templar
-
+import copy
 from ansible_collections.ansible.netcommon.tests.unit.compat import unittest
 from ansible_collections.ansible.netcommon.tests.unit.compat.mock import (
     MagicMock,
@@ -142,71 +142,71 @@ class TestUpdate_Fact(unittest.TestCase):
     def test_run_simple(self):
         """Confirm a valid argspec passes"""
         task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
-        self._plugin._task.args = {"a.b": 5}
-        result = self._plugin.run(task_vars=task_vars)
-        expected = task_vars["vars"]
+        expected = copy.deepcopy(task_vars["vars"])
         expected["a"]["b"] = 5
         expected.update({"changed": True})
+        self._plugin._task.args = {"a.b": 5}
+        result = self._plugin.run(task_vars=task_vars)
         self.assertEqual(result, expected)
 
     def test_run_replace_in_list(self):
         """Replace in list"""
         task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
-        self._plugin._task.args = {"a.b.1": 5}
-        result = self._plugin.run(task_vars=task_vars)
-        expected = task_vars["vars"]
+        expected = copy.deepcopy(task_vars["vars"])
         expected["a"]["b"][1] = 5
         expected.update({"changed": True})
+        self._plugin._task.args = {"a.b.1": 5}
+        result = self._plugin.run(task_vars=task_vars)
         self.assertEqual(result, expected)
 
     def test_run_append_to_list(self):
         """Append to list"""
         task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
-        self._plugin._task.args = {"a.b.3": 4}
-        result = self._plugin.run(task_vars=task_vars)
-        expected = task_vars["vars"]
+        expected = copy.deepcopy(task_vars["vars"])
         expected["a"]["b"].append(4)
         expected.update({"changed": True})
+        self._plugin._task.args = {"a.b.3": 4}
+        result = self._plugin.run(task_vars=task_vars)
         self.assertEqual(result, expected)
 
     def test_run_bracket_single_quote(self):
         """Bracket notation sigle quote"""
         task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
-        self._plugin._task.args = {"a['b'][3]": 4}
-        result = self._plugin.run(task_vars=task_vars)
-        expected = task_vars["vars"]
+        expected = copy.deepcopy(task_vars["vars"])
         expected["a"]["b"].append(4)
         expected.update({"changed": True})
+        self._plugin._task.args = {"a['b'][3]": 4}
+        result = self._plugin.run(task_vars=task_vars)
         self.assertEqual(result, expected)
 
     def test_run_bracket_double_quote(self):
         """Bracket notation double quote"""
         task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
-        self._plugin._task.args = {'a["b"][3]': 4}
-        result = self._plugin.run(task_vars=task_vars)
-        expected = task_vars["vars"]
+        expected = copy.deepcopy(task_vars["vars"])
         expected["a"]["b"].append(4)
         expected.update({"changed": True})
+        self._plugin._task.args = {'a["b"][3]': 4}
+        result = self._plugin.run(task_vars=task_vars)
         self.assertEqual(result, expected)
 
     def test_run_int_dict_keys(self):
         """Integer dict keys"""
         task_vars = {"vars": {"a": {0: [1, 2, 3]}}}
-        self._plugin._task.args = {"a.0.0": 0}
-        result = self._plugin.run(task_vars=task_vars)
-        expected = task_vars["vars"]
+        expected = copy.deepcopy(task_vars["vars"])
         expected["a"][0][0] = 0
         expected.update({"changed": True})
+        self._plugin._task.args = {"a.0.0": 0}
+        result = self._plugin.run(task_vars=task_vars)
         self.assertEqual(result, expected)
 
     def test_run_int_as_string(self):
         """Integer dict keys as string"""
         task_vars = {"vars": {"a": {"0": [1, 2, 3]}}}
-        self._plugin._task.args = {'a["0"].0': 0}
-        result = self._plugin.run(task_vars=task_vars)
-        expected = task_vars["vars"]
+        expected = copy.deepcopy(task_vars["vars"])
         expected["a"]["0"][0] = 0
         expected.update({"changed": True})
+        self._plugin._task.args = {'a["0"].0': 0}
+        result = self._plugin.run(task_vars=task_vars)
         self.assertEqual(result, expected)
 
     def test_run_invalid_key_quote_after_dot(self):
@@ -236,21 +236,21 @@ class TestUpdate_Fact(unittest.TestCase):
     def test_run_no_update_list(self):
         """Confirm no change when same"""
         task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
-        self._plugin._task.args = {"a.b.0": 1}
-        result = self._plugin.run(task_vars=task_vars)
-        expected = task_vars["vars"]
+        expected = copy.deepcopy(task_vars["vars"])
         expected["a"]["b"] = [1, 2, 3]
         expected.update({"changed": False})
+        self._plugin._task.args = {"a.b.0": 1}
+        result = self._plugin.run(task_vars=task_vars)
         self.assertEqual(result, expected)
 
     def test_run_no_update_dict(self):
         """Confirm no change when same"""
         task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
-        self._plugin._task.args = {"a.b": [1, 2, 3]}
-        result = self._plugin.run(task_vars=task_vars)
-        expected = task_vars["vars"]
+        expected = copy.deepcopy(task_vars["vars"])
         expected["a"]["b"] = [1, 2, 3]
         expected.update({"changed": False})
+        self._plugin._task.args = {"a.b": [1, 2, 3]}
+        result = self._plugin.run(task_vars=task_vars)
         self.assertEqual(result, expected)
 
     def test_run_missing_key(self):
@@ -295,11 +295,11 @@ class TestUpdate_Fact(unittest.TestCase):
     def test_run_not_dotted_success_one(self):
         """Test with a not dotted key"""
         task_vars = {"vars": {"a": 0}}
-        self._plugin._task.args = {"a": 1}
-        result = self._plugin.run(task_vars=task_vars)
-        expected = task_vars["vars"]
+        expected = copy.deepcopy(task_vars["vars"])
         expected["a"] = 1
         expected.update({"changed": True})
+        self._plugin._task.args = {"a": 1}
+        result = self._plugin.run(task_vars=task_vars)
         self.assertEqual(result, expected)
 
     def test_run_not_dotted_success_three(self):
@@ -325,8 +325,19 @@ class TestUpdate_Fact(unittest.TestCase):
     def test_run_not_dotted_success_same(self):
         """Test with a not dotted key, no change"""
         task_vars = {"vars": {"a": 0}}
+        expected = copy.deepcopy(task_vars["vars"])
+        expected.update({"changed": False})
         self._plugin._task.args = {"a": 0}
         result = self._plugin.run(task_vars=task_vars)
-        expected = task_vars["vars"]
-        expected.update({"changed": False})
+        self.assertEqual(result, expected)
+
+    def test_run_looks_like_a_bool(self):
+        """Test with a key that looks like a bool"""
+        task_vars = {"vars": {"a": {"True": 0}}}
+        expected = copy.deepcopy(task_vars["vars"])
+        expected["a"]["True"] = 1
+        expected.update({"changed": True})
+
+        self._plugin._task.args = {"a['True']": 1}
+        result = self._plugin.run(task_vars=task_vars)
         self.assertEqual(result, expected)

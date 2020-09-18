@@ -1,0 +1,10 @@
+{
+    "docs": "https://docs.ansible.com/ansible/2.9/dev_guide/testing/sanity/validate-modules.html",
+    "results": [
+        {
+            "message": "The test `ansible-test sanity --test validate-modules` [[explain](https://docs.ansible.com/ansible/2.9/dev_guide/testing/sanity/validate-modules.html)] failed with 3 errors:",
+            "output": "plugins/modules/netconf_config.py:0:0: doc-type-does-not-match-spec: Argument 'content' in argument_spec defines type as 'raw' but documentation defines type as 'str'\nplugins/modules/netconf_get.py:0:0: doc-type-does-not-match-spec: Argument 'filter' in argument_spec defines type as 'raw' but documentation defines type as 'dict'\nplugins/modules/update_fact.py:0:0: missing-gplv3-license: GPLv3 license header not found in the first 20 lines of the module"
+        }
+    ],
+    "verified": false
+}

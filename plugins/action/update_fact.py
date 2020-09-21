@@ -24,7 +24,8 @@ import ast
 import json
 import re
 from ansible.plugins.action import ActionBase
-from ansible.errors import AnsibleModuleError
+from ansible.errors import AnsibleActionFail
+
 from ansible.module_utils.common._collections_compat import (
     MutableMapping,
     MutableSequence,
@@ -38,6 +39,7 @@ from ansible_collections.cidrblock.dev.plugins.modules.update_fact import (
 from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.utils import (
     convert_doc_to_ansible_module_kwargs,
 )
+
 
 class ActionModule(ActionBase):
     """action module"""
@@ -54,7 +56,7 @@ class ActionModule(ActionBase):
         """
         argspec = convert_doc_to_ansible_module_kwargs(DOCUMENTATION)
         return argspec
-    
+
     def _fail_json(self, msg):
         """ Replace the AnsibleModule fai_json here
         :param msg: The message for the failure
@@ -88,7 +90,7 @@ class ActionModule(ActionBase):
                 ).format(key=key, error=to_native(exc))
                 errors.append(error)
         if errors:
-            raise AnsibleModuleError(" ".join(errors))
+            raise AnsibleActionFail(" ".join(errors))
 
     @staticmethod
     def _field_split(path):
@@ -137,7 +139,7 @@ class ActionModule(ActionBase):
                     "Error: the key '{first}' was not found "
                     "in {obj}.".format(obj=obj, first=first)
                 )
-                raise AnsibleModuleError(msg)
+                raise AnsibleActionFail(msg)
             self.set_value(new_obj, rest, val)
         else:
             if isinstance(obj, MutableMapping):
@@ -150,12 +152,12 @@ class ActionModule(ActionBase):
                         "Error: {obj} is a list, "
                         "but index provided was not an integer: '{first}'"
                     ).format(obj=obj, first=first)
-                    raise AnsibleModuleError(msg)
+                    raise AnsibleActionFail(msg)
                 if first > len(obj):
                     msg = "Error: {obj} not long enough for item #{first} to be set.".format(
                         obj=obj, first=first
                     )
-                    raise AnsibleModuleError(msg)
+                    raise AnsibleActionFail(msg)
                 if first == len(obj):
                     obj.append(val)
                     self._result["changed"] = True
@@ -165,7 +167,7 @@ class ActionModule(ActionBase):
                         self._result["changed"] = True
             else:
                 msg = "update_fact can only modify mutable objects."
-                raise AnsibleModuleError(msg)
+                raise AnsibleActionFail(msg)
 
     def run(self, tmp=None, task_vars=None):
         self._task.diff = False
@@ -174,8 +176,8 @@ class ActionModule(ActionBase):
         self._check_argspec()
         results = set()
         self._ensure_valid_jinja()
-        for entry in self._task.args['updates']:
-            parts = self._field_split(entry['path'])
+        for entry in self._task.args["updates"]:
+            parts = self._field_split(entry["path"])
             if len(parts) == 1:
                 obj = parts[0]
                 results.add(obj)
@@ -183,10 +185,10 @@ class ActionModule(ActionBase):
                     msg = "'{obj}' was not found in the current facts.".format(
                         obj=obj
                     )
-                    raise AnsibleModuleError(msg)
+                    raise AnsibleActionFail(msg)
                 retrieved = task_vars["vars"].get(obj)
-                if retrieved != entry['value']:
-                    task_vars["vars"][obj] = entry['value']
+                if retrieved != entry["value"]:
+                    task_vars["vars"][obj] = entry["value"]
                     self._result["changed"] = True
             else:
                 obj, path = parts[0], parts[1:]
@@ -195,9 +197,9 @@ class ActionModule(ActionBase):
                     msg = "'{obj}' was not found in the current facts.".format(
                         obj=obj
                     )
-                    raise AnsibleModuleError(msg)
+                    raise AnsibleActionFail(msg)
                 retrieved = task_vars["vars"].get(obj)
-                self.set_value(retrieved, path, entry['value'])
+                self.set_value(retrieved, path, entry["value"])
 
         for key in results:
             value = task_vars["vars"].get(key)

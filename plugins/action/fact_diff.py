@@ -14,9 +14,7 @@ from ansible_collections.cidrblock.dev.plugins.module_utils.dot_utils import (
 
 ARGSPEC = {
     "argument_spec": {
-        "before": {
-            "required": True,
-        },
+        "before": {"required": True,},
         "after": {"required": True},
         "dotted": {"default": False},
     }

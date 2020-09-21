@@ -25,7 +25,7 @@ DOCUMENTATION = r"""
 ---
 module: update_fact
 short_description: Update currently set facts
-version_added: "1.2"
+version_added: "1.3"
 description:
     - This module allows updating existing variables.
     - Variables are updated on a host-by-host basis.
@@ -222,7 +222,7 @@ EXAMPLES = r"""
 #   - 10 permit ip 192.168.20.0/24 host 10.1.1.2
 
 
-# Disable ip_redirects on any layer3 interface
+# Disable ip redirects on any layer3 interface
 
 - name: Get the current interface config
   cisco.nxos.nxos_facts:
@@ -230,7 +230,7 @@ EXAMPLES = r"""
     - interfaces
     - l3_interfaces
 
-- name: Rekey the interface lists using the interface name
+- name: Rekey the l3 interface lists using the interface name
   set_fact:
     l3_interfaces: "{{ ansible_network_resources['l3_interfaces']|rekey_on_member('name') }}"
     update_list: []
@@ -242,11 +242,18 @@ EXAMPLES = r"""
   vars:
     update:
     - path: "l3_interfaces[{{ item['name'] }}]['redirects']"
-      value: True
+      value: False
   when: item['mode']|default() == 'layer3'
-  register: updates
 
-- name: Apply the updates
+# TASK [debug] **************************************
+# ok: [nxos101] => 
+#   update_list:
+#   - path: l3_interfaces[Ethernet1/10]['redirects']
+#     value: false
+#   - path: l3_interfaces[Ethernet1/11]['redirects']
+#     value: false
+
+- name: Apply the fact updates
   update_fact:
     updates: "{{ update_list }}"
   register: updated
@@ -268,4 +275,7 @@ EXAMPLES = r"""
 #   msg:
 #   - interface Ethernet1/10
 #   - no ip redirects
+#   - interface Ethernet1/11
+#   - no ip redirects
+
 """

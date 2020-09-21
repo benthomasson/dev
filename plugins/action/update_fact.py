@@ -62,7 +62,11 @@ class ActionModule(ActionBase):
         :param msg: The message for the failure
         :type msg: str
         """
-        msg = msg.replace("(basic.py)", self._task.action)
+        msg = re.sub(
+            "\(basic\.pyc?\)",
+            "'{action}'".format(action=self._task.action),
+            msg,
+        )
         raise AnsibleActionFail(msg)
 
     def _check_argspec(self):

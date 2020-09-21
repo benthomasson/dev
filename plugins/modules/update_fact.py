@@ -1,3 +1,21 @@
+#
+# Copyright 2020 Red Hat Inc.
+#
+# This file is part of Ansible
+#
+# Ansible is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Ansible is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
+#
 from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
@@ -33,10 +51,10 @@ options:
         - Can be a simple or complex data structure
         type: raw
         required: True
-  
+
 
 notes:
-  
+
 author:
 - Bradley Thornton (@cidrblock)
 """
@@ -140,7 +158,7 @@ EXAMPLES = r"""
     msg: "{{ result['commands'] }}"
 
 # TASK [Show the commands issued] *********
-# ok: [sw01] => 
+# ok: [sw01] =>
 #   msg:
 #   - interface Ethernet1/1
 #   - description Configured by ansible
@@ -181,7 +199,7 @@ EXAMPLES = r"""
   ansible.netcommon.update_fact:
     updates:
     - path: current.gathered[{{ afi_index }}].acls[{{ acl_index }}].aces[{{ ace_index }}].source
-      value: 
+      value:
         subnet_address: "192.168.1.0/24"
   register: updated
 
@@ -196,22 +214,22 @@ EXAMPLES = r"""
     var: changes.commands
 
 # TASK [Show the commands issued] ***************
-# ok: [eos101] => 
+# ok: [eos101] =>
 #   changes.commands:
 #   - ip access-list test1
 #   - no 10
 #   - ip access-list test1
 #   - 10 permit ip 192.168.20.0/24 host 10.1.1.2
- 
+
 
 # Disable ip_redirects on any layer3 interface
 
 - name: Get the current interface config
-    cisco.nxos.nxos_facts:
-      gather_network_resources:
-      - interfaces
-      - l3_interfaces
-  
+  cisco.nxos.nxos_facts:
+    gather_network_resources:
+    - interfaces
+    - l3_interfaces
+
 - name: Rekey the interface lists using the interface name
   set_fact:
     l3_interfaces: "{{ ansible_network_resources['l3_interfaces']|rekey_on_member('name') }}"
@@ -231,8 +249,8 @@ EXAMPLES = r"""
 - name: Apply the updates
   update_fact:
     updates: "{{ update_list }}"
-  register: updated    
-  
+  register: updated
+
 - name: Update the configuration
   cisco.nxos.nxos_l3_interfaces:
     config: "{{ updated.l3_interfaces.values()|list }}"
@@ -246,7 +264,7 @@ EXAMPLES = r"""
   when: updated['changed']
 
 # TASK [Show the commands issued] *******
-# ok: [sw01] => 
+# ok: [sw01] =>
 #   msg:
 #   - interface Ethernet1/10
 #   - no ip redirects

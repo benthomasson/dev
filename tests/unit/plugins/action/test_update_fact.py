@@ -150,73 +150,78 @@ class TestUpdate_Fact(unittest.TestCase):
         result = self._plugin.run(task_vars=task_vars)
         self.assertEqual(result, expected)
 
-    # def test_run_replace_in_list(self):
-    #     """Replace in list"""
-    #     task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
-    #     expected = copy.deepcopy(task_vars["vars"])
-    #     expected["a"]["b"][1] = 5
-    #     expected.update({"changed": True})
-    #     self._plugin._task.args = {"a.b.1": 5}
-    #     result = self._plugin.run(task_vars=task_vars)
-    #     self.assertEqual(result, expected)
+    def test_run_replace_in_list(self):
+        """Replace in list"""
+        task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
+        expected = copy.deepcopy(task_vars["vars"])
+        expected["a"]["b"][1] = 5
+        expected.update({"changed": True})
+        self._plugin._task.args = {"updates": [{"path": "a.b.1", "value": 5}]}
+        result = self._plugin.run(task_vars=task_vars)
+        self.assertEqual(result, expected)
 
-    # def test_run_append_to_list(self):
-    #     """Append to list"""
-    #     task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
-    #     expected = copy.deepcopy(task_vars["vars"])
-    #     expected["a"]["b"].append(4)
-    #     expected.update({"changed": True})
-    #     self._plugin._task.args = {"a.b.3": 4}
-    #     result = self._plugin.run(task_vars=task_vars)
-    #     self.assertEqual(result, expected)
+    def test_run_append_to_list(self):
+        """Append to list"""
+        task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
+        expected = copy.deepcopy(task_vars["vars"])
+        expected["a"]["b"].append(4)
+        expected.update({"changed": True})
+        self._plugin._task.args = {"updates": [{"path": "a.b.3", "value": 4}]}
+        result = self._plugin.run(task_vars=task_vars)
+        self.assertEqual(result, expected)
 
-    # def test_run_bracket_single_quote(self):
-    #     """Bracket notation sigle quote"""
-    #     task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
-    #     expected = copy.deepcopy(task_vars["vars"])
-    #     expected["a"]["b"].append(4)
-    #     expected.update({"changed": True})
-    #     self._plugin._task.args = {"a['b'][3]": 4}
-    #     result = self._plugin.run(task_vars=task_vars)
-    #     self.assertEqual(result, expected)
+    def test_run_bracket_single_quote(self):
+        """Bracket notation sigle quote"""
+        task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
+        expected = copy.deepcopy(task_vars["vars"])
+        expected["a"]["b"].append(4)
+        expected.update({"changed": True})
+        self._plugin._task.args = {
+            "updates": [{"path": "a['b'][3]", "value": 4}]
+        }
+        result = self._plugin.run(task_vars=task_vars)
+        self.assertEqual(result, expected)
 
-    # def test_run_bracket_double_quote(self):
-    #     """Bracket notation double quote"""
-    #     task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
-    #     expected = copy.deepcopy(task_vars["vars"])
-    #     expected["a"]["b"].append(4)
-    #     expected.update({"changed": True})
-    #     self._plugin._task.args = {'a["b"][3]': 4}
-    #     result = self._plugin.run(task_vars=task_vars)
-    #     self.assertEqual(result, expected)
+    def test_run_bracket_double_quote(self):
+        """Bracket notation double quote"""
+        task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
+        expected = copy.deepcopy(task_vars["vars"])
+        expected["a"]["b"].append(4)
+        expected.update({"changed": True})
+        self._plugin._task.args = {
+            "updates": [{"path": 'a["b"][3]', "value": 4}]
+        }
+        result = self._plugin.run(task_vars=task_vars)
+        self.assertEqual(result, expected)
 
-    # def test_run_int_dict_keys(self):
-    #     """Integer dict keys"""
-    #     task_vars = {"vars": {"a": {0: [1, 2, 3]}}}
-    #     expected = copy.deepcopy(task_vars["vars"])
-    #     expected["a"][0][0] = 0
-    #     expected.update({"changed": True})
-    #     self._plugin._task.args = {"a.0.0": 0}
-    #     result = self._plugin.run(task_vars=task_vars)
-    #     self.assertEqual(result, expected)
+    def test_run_int_dict_keys(self):
+        """Integer dict keys"""
+        task_vars = {"vars": {"a": {0: [1, 2, 3]}}}
+        expected = copy.deepcopy(task_vars["vars"])
+        expected["a"][0][0] = 0
+        expected.update({"changed": True})
+        self._plugin._task.args = {"updates": [{"path": "a.0.0", "value": 0}]}
+        result = self._plugin.run(task_vars=task_vars)
+        self.assertEqual(result, expected)
 
-    # def test_run_int_as_string(self):
-    #     """Integer dict keys as string"""
-    #     task_vars = {"vars": {"a": {"0": [1, 2, 3]}}}
-    #     expected = copy.deepcopy(task_vars["vars"])
-    #     expected["a"]["0"][0] = 0
-    #     expected.update({"changed": True})
-    #     self._plugin._task.args = {'a["0"].0': 0}
-    #     result = self._plugin.run(task_vars=task_vars)
-    #     self.assertEqual(result, expected)
+    def test_run_int_as_string(self):
+        """Integer dict keys as string"""
+        task_vars = {"vars": {"a": {"0": [1, 2, 3]}}}
+        expected = copy.deepcopy(task_vars["vars"])
+        expected["a"]["0"][0] = 0
+        expected.update({"changed": True})
+        self._plugin._task.args = {
+            "updates": [{"path": 'a["0"].0', "value": 0}]
+        }
+        result = self._plugin.run(task_vars=task_vars)
+        self.assertEqual(result, expected)
 
-    # def test_run_invalid_key_quote_after_dot(self):
-    #     """Invalid key format"""
-    #     invalid = {"a.'b'": 0}
-    #     self._plugin._task.args = invalid
-    #     with self.assertRaises(Exception) as error:
-    #         self._plugin.run(task_vars={"vars": {}})
-    #     self.assertIn("malformed", str(error.exception))
+    def test_run_invalid_path_quote_after_dot(self):
+        """Invalid path format"""
+        self._plugin._task.args = {"updates": [{"path": "a.'b'", "value": 0}]}
+        with self.assertRaises(Exception) as error:
+            self._plugin.run(task_vars={"vars": {}})
+        self.assertIn("malformed", str(error.exception))
 
     # def test_run_invalid_key_bracket_after_dot(self):
     #     """Invalid key format"""

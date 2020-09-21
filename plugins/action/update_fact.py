@@ -63,7 +63,7 @@ class ActionModule(ActionBase):
         :type msg: str
         """
         msg = re.sub(
-            "\(basic\.pyc?\)",
+            r"\(basic\.pyc?\)",
             "'{action}'".format(action=self._task.action),
             msg,
         )
@@ -83,15 +83,15 @@ class ActionModule(ActionBase):
 
     def _ensure_valid_jinja(self):
         errors = []
-        for key, _value in self._task.args.items():
+        for entry in self._task.args["updates"]:
             try:
-                Template("{{" + key + "}}")
+                Template("{{" + entry["path"] + "}}")
             except TemplateSyntaxError as exc:
                 error = (
-                    "While processing '{key}' found malformed key reference."
+                    "While processing '{path}' found malformed path."
                     " Ensure syntax follows valid jinja format. The error was:"
                     " {error}"
-                ).format(key=key, error=to_native(exc))
+                ).format(path=entry["path"], error=to_native(exc))
                 errors.append(error)
         if errors:
             raise AnsibleActionFail(" ".join(errors))

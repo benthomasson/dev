@@ -129,6 +129,80 @@ EXAMPLES = r"""
 #       - 30
 #   changed: true
 
+# Update every item in a list of dictionaries
+# build the update list ahead of time using a loop
+# and then apply the changes to the fact
+
+- name: Set fact
+  set_fact:
+    addresses:
+    - raw: 10.1.1.0/255.255.255.0
+      name: servers
+    - raw: 192.168.1.0/255.255.255.0
+      name: printers
+    - raw: 8.8.8.8
+      name: dns
+
+- name: Build a list of updates
+  set_fact:
+    update_list: "{{ update_list + update }}"
+  loop: "{{ addresses }}"
+  loop_control:
+    index_var: idx
+  vars:
+    update_list: []
+    update:
+    - path: addresses[{{ idx }}].network
+      value: "{{ item['raw'] | ansible.netcommon.ipaddr('network') }}"
+    - path: addresses[{{ idx }}].prefix
+      value: "{{ item['raw'] | ansible.netcommon.ipaddr('prefix') }}"
+
+- debug:
+    var: update_list
+
+# TASK [debug] *******************
+# ok: [localhost] => 
+#   update_list:
+#   - path: addresses[0].network
+#     value: 10.1.1.0
+#   - path: addresses[0].prefix
+#     value: '24'
+#   - path: addresses[1].network
+#     value: 192.168.1.0
+#   - path: addresses[1].prefix
+#     value: '24'
+#   - path: addresses[2].network
+#     value: 8.8.8.8
+#   - path: addresses[2].prefix
+#     value: '32'
+  
+  - name: Make the updates
+    update_fact: 
+      updates: "{{ update_list }}"
+    register: updated
+
+  - debug:
+      var: updated
+
+# TASK [debug] ***********************
+# ok: [localhost] => 
+#   updated:
+#     addresses:
+#     - name: servers
+#       network: 10.1.1.0
+#       prefix: '24'
+#       raw: 10.1.1.0/255.255.255.0
+#     - name: printers
+#       network: 192.168.1.0
+#       prefix: '24'
+#       raw: 192.168.1.0/255.255.255.0
+#     - name: dns
+#       network: 8.8.8.8
+#       prefix: '32'
+#       raw: 8.8.8.8
+#     changed: true
+#     failed: false
+
 # Retrieve, update, and apply interface description change
 
 - name: Get the current interface config
@@ -233,7 +307,6 @@ EXAMPLES = r"""
 - name: Rekey the l3 interface lists using the interface name
   set_fact:
     l3_interfaces: "{{ ansible_network_resources['l3_interfaces']|rekey_on_member('name') }}"
-    update_list: []
 
 - name: Build the update list for any layer3 interface
   set_fact:
@@ -243,6 +316,7 @@ EXAMPLES = r"""
     update:
     - path: "l3_interfaces[{{ item['name'] }}]['redirects']"
       value: False
+    update_list: []
   when: item['mode']|default() == 'layer3'
 
 # TASK [debug] **************************************

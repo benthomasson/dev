@@ -13,18 +13,30 @@ description:
     - Variables are updated on a host-by-host basis.
     - Variable are not modified in place, instead they are returned by the module
 options:
-  key_value:
+  updates:
     description:
-      - The C(update_fact) module takes key=value pairs as variables to update
-      - The key should be in dot or bracket notation, indicating the path to update
-      - The key value should be a valid jinja reference
-      - Exisiting keys or list entries will be replaced by the value provided.
-    required: true
+      - A list of dictionaries, each a desired update to make
+    type: list
+    elements: dict
+    required: True
+    suboptions:
+      path:
+        description:
+        - The path in a currently set variable to update
+        - The path can be in dot or bracket notation
+        - It should be a valid jinja reference
+        type: str
+        required: True
+      value:
+        description:
+        - The value to be set at the path
+        - Can be a simple or complex data structure
+        type: raw
+        required: True
+  
 
 notes:
-  - Python2 does not guarentee the order in which updates are made. If using Python2 and making
-    multiple changes to the same variable that require a specific order, use multiple tasks.
-
+  
 author:
 - Bradley Thornton (@cidrblock)
 """

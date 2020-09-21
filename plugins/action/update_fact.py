@@ -21,6 +21,7 @@ from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
 import ast
+import json
 import re
 from ansible.plugins.action import ActionBase
 from ansible.errors import AnsibleModuleError
@@ -28,9 +29,15 @@ from ansible.module_utils.common._collections_compat import (
     MutableMapping,
     MutableSequence,
 )
-from ansible.module_utils._text import to_native
+from ansible.module_utils import basic
+from ansible.module_utils._text import to_bytes, to_native
 from jinja2 import Template, TemplateSyntaxError
-
+from ansible_collections.cidrblock.dev.plugins.modules.update_fact import (
+    DOCUMENTATION,
+)
+from ansible_collections.ansible.netcommon.plugins.module_utils.network.common.utils import (
+    convert_doc_to_ansible_module_kwargs,
+)
 
 class ActionModule(ActionBase):
     """action module"""
@@ -41,10 +48,32 @@ class ActionModule(ActionBase):
         self._updates = None
         self._result = None
 
+    @staticmethod
+    def _generate_argspec():
+        """ Generate an argspec
+        """
+        argspec = convert_doc_to_ansible_module_kwargs(DOCUMENTATION)
+        return argspec
+    
+    def _fail_json(self, msg):
+        """ Replace the AnsibleModule fai_json here
+        :param msg: The message for the failure
+        :type msg: str
+        """
+        msg = msg.replace("(basic.py)", self._task.action)
+        raise AnsibleActionFail(msg)
+
     def _check_argspec(self):
-        if not isinstance(self._task.args, dict):
-            msg = "Update_facts requires a dictionary of key value pairs"
-            raise AnsibleModuleError(msg)
+        """ Load the doc and convert
+        Add the root conditionals to what was returned from the conversion
+        and instantiate an AnsibleModule to validate
+        """
+        argspec = self._generate_argspec()
+        basic._ANSIBLE_ARGS = to_bytes(
+            json.dumps({"ANSIBLE_MODULE_ARGS": self._task.args})
+        )
+        basic.AnsibleModule.fail_json = self._fail_json
+        basic.AnsibleModule(**argspec)
 
     def _ensure_valid_jinja(self):
         errors = []
@@ -142,7 +171,7 @@ class ActionModule(ActionBase):
         self._task.diff = False
         self._result = super(ActionModule, self).run(tmp, task_vars)
         self._result["changed"] = False
-        # self._check_argspec()
+        self._check_argspec()
         results = set()
         self._ensure_valid_jinja()
         for entry in self._task.args['updates']:

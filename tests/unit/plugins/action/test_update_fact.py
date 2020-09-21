@@ -223,69 +223,67 @@ class TestUpdate_Fact(unittest.TestCase):
             self._plugin.run(task_vars={"vars": {}})
         self.assertIn("malformed", str(error.exception))
 
-    # def test_run_invalid_key_bracket_after_dot(self):
-    #     """Invalid key format"""
-    #     invalid = {"a.['b']": 0}
-    #     self._plugin._task.args = invalid
-    #     with self.assertRaises(Exception) as error:
-    #         self._plugin.run(task_vars={"vars": {}})
-    #     self.assertIn("malformed", str(error.exception))
+    def test_run_invalid_path_bracket_after_dot(self):
+        """Invalid path format"""
+        self._plugin._task.args = {"updates": [{"path": "a.['b']", "value": 0}]}
+        with self.assertRaises(Exception) as error:
+            self._plugin.run(task_vars={"vars": {}})
+        self.assertIn("malformed", str(error.exception))
 
-    # def test_run_invalid_key_start_with_dot(self):
-    #     """Invalid key format"""
-    #     invalid = {".abc": 0}
-    #     self._plugin._task.args = invalid
-    #     with self.assertRaises(Exception) as error:
-    #         self._plugin.run(task_vars={"vars": {}})
-    #     self.assertIn("malformed", str(error.exception))
+    def test_run_invalid_key_start_with_dot(self):
+        """Invalid key format"""
+        self._plugin._task.args = {"updates": [{"path": ".abc", "value": 0}]}
+        with self.assertRaises(Exception) as error:
+            self._plugin.run(task_vars={"vars": {}})
+        self.assertIn("malformed", str(error.exception))
 
-    # def test_run_no_update_list(self):
-    #     """Confirm no change when same"""
-    #     task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
-    #     expected = copy.deepcopy(task_vars["vars"])
-    #     expected["a"]["b"] = [1, 2, 3]
-    #     expected.update({"changed": False})
-    #     self._plugin._task.args = {"a.b.0": 1}
-    #     result = self._plugin.run(task_vars=task_vars)
-    #     self.assertEqual(result, expected)
+    def test_run_no_update_list(self):
+        """Confirm no change when same"""
+        task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
+        expected = copy.deepcopy(task_vars["vars"])
+        expected["a"]["b"] = [1, 2, 3]
+        expected.update({"changed": False})
+        self._plugin._task.args = {"updates": [{"path": "a.b.0", "value": 1}]}
+        result = self._plugin.run(task_vars=task_vars)
+        self.assertEqual(result, expected)
 
-    # def test_run_no_update_dict(self):
-    #     """Confirm no change when same"""
-    #     task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
-    #     expected = copy.deepcopy(task_vars["vars"])
-    #     expected["a"]["b"] = [1, 2, 3]
-    #     expected.update({"changed": False})
-    #     self._plugin._task.args = {"a.b": [1, 2, 3]}
-    #     result = self._plugin.run(task_vars=task_vars)
-    #     self.assertEqual(result, expected)
+    def test_run_no_update_dict(self):
+        """Confirm no change when same"""
+        task_vars = {"vars": {"a": {"b": [1, 2, 3]}}}
+        expected = copy.deepcopy(task_vars["vars"])
+        expected["a"]["b"] = [1, 2, 3]
+        expected.update({"changed": False})
+        self._plugin._task.args = {"updates": [{"path": "a.b", "value": [1,2,3]}]}
+        result = self._plugin.run(task_vars=task_vars)
+        self.assertEqual(result, expected)
 
-    # def test_run_missing_key(self):
-    #     """Confirm error when key not found"""
-    #     task_vars = {"vars": {"a": {"b": 1}}}
-    #     self._plugin._task.args = {"a.c.d": 1}
-    #     with self.assertRaises(Exception) as error:
-    #         self._plugin.run(task_vars=task_vars)
-    #     self.assertIn("the key 'c' was not found", str(error.exception))
+    def test_run_missing_key(self):
+        """Confirm error when key not found"""
+        task_vars = {"vars": {"a": {"b": 1}}}
+        self._plugin._task.args = {"updates": [{"path": "a.c.d", "value": 1}]}
+        with self.assertRaises(Exception) as error:
+            self._plugin.run(task_vars=task_vars)
+        self.assertIn("the key 'c' was not found", str(error.exception))
 
-    # def test_run_list_not_int(self):
-    #     """Confirm error when key not found"""
-    #     task_vars = {"vars": {"a": {"b": [1]}}}
-    #     self._plugin._task.args = {"a.b['0']": 2}
-    #     with self.assertRaises(Exception) as error:
-    #         self._plugin.run(task_vars=task_vars)
-    #     self.assertIn(
-    #         "index provided was not an integer", str(error.exception)
-    #     )
+    def test_run_list_not_int(self):
+        """Confirm error when key not found"""
+        task_vars = {"vars": {"a": {"b": [1]}}}
+        self._plugin._task.args = {"updates": [{"path": "a.b['0']", "value": 2}]}
+        with self.assertRaises(Exception) as error:
+            self._plugin.run(task_vars=task_vars)
+        self.assertIn(
+            "index provided was not an integer", str(error.exception)
+        )
 
-    # def test_run_list_not_long(self):
-    #     """Confirm error when key not found"""
-    #     task_vars = {"vars": {"a": {"b": [0]}}}
-    #     self._plugin._task.args = {"a.b.2": 2}
-    #     with self.assertRaises(Exception) as error:
-    #         self._plugin.run(task_vars=task_vars)
-    #     self.assertIn(
-    #         "not long enough for item #2 to be set", str(error.exception)
-    #     )
+    def test_run_list_not_long(self):
+        """List not long enough"""
+        task_vars = {"vars": {"a": {"b": [0]}}}
+        self._plugin._task.args = {"updates": [{"path": "a.b.2", "value": 2}]}
+        with self.assertRaises(Exception) as error:
+            self._plugin.run(task_vars=task_vars)
+        self.assertIn(
+            "not long enough for item #2 to be set", str(error.exception)
+        )
 
     # def test_not_mutable_sequence_or_mapping(self):
     #     """Confirm graceful fail when immutable object

@@ -94,8 +94,8 @@ class TestUpdate_Fact(unittest.TestCase):
         )
         self._plugin._task.action = "update_fact"
 
-    def test_argspec_dict(self):
-        """Check passing a list"""
+    def test_argspec_no_updates(self):
+        """Check passing invalid argspec"""
         self._plugin._task.args = {"a": 10}
         with self.assertRaises(Exception) as error:
             self._plugin.run(task_vars=None)
@@ -147,6 +147,23 @@ class TestUpdate_Fact(unittest.TestCase):
         expected["a"]["b"] = 5
         expected.update({"changed": True})
         self._plugin._task.args = {"updates": [{"path": "a.b", "value": 5}]}
+        result = self._plugin.run(task_vars=task_vars)
+        self.assertEqual(result, expected)
+
+    def test_run_multiple(self):
+        """Confirm multiple paths passes"""
+        task_vars = {
+            "vars": {"a": {"b1": [1, 2, 3], "b2": {"c": "123", "d": False}}}
+        }
+        expected = {"a": {"b1": [1, 2, 3, 4], "b2": {"c": 456, "d": True}}}
+        expected.update({"changed": True})
+        self._plugin._task.args = {
+            "updates": [
+                {"path": "a.b1.3", "value": 4},
+                {"path": "a.b2.c", "value": 456},
+                {"path": "a.b2.d", "value": True},
+            ]
+        }
         result = self._plugin.run(task_vars=task_vars)
         self.assertEqual(result, expected)
 
@@ -225,7 +242,9 @@ class TestUpdate_Fact(unittest.TestCase):
 
     def test_run_invalid_path_bracket_after_dot(self):
         """Invalid path format"""
-        self._plugin._task.args = {"updates": [{"path": "a.['b']", "value": 0}]}
+        self._plugin._task.args = {
+            "updates": [{"path": "a.['b']", "value": 0}]
+        }
         with self.assertRaises(Exception) as error:
             self._plugin.run(task_vars={"vars": {}})
         self.assertIn("malformed", str(error.exception))
@@ -253,7 +272,9 @@ class TestUpdate_Fact(unittest.TestCase):
         expected = copy.deepcopy(task_vars["vars"])
         expected["a"]["b"] = [1, 2, 3]
         expected.update({"changed": False})
-        self._plugin._task.args = {"updates": [{"path": "a.b", "value": [1,2,3]}]}
+        self._plugin._task.args = {
+            "updates": [{"path": "a.b", "value": [1, 2, 3]}]
+        }
         result = self._plugin.run(task_vars=task_vars)
         self.assertEqual(result, expected)
 
@@ -268,7 +289,9 @@ class TestUpdate_Fact(unittest.TestCase):
     def test_run_list_not_int(self):
         """Confirm error when key not found"""
         task_vars = {"vars": {"a": {"b": [1]}}}
-        self._plugin._task.args = {"updates": [{"path": "a.b['0']", "value": 2}]}
+        self._plugin._task.args = {
+            "updates": [{"path": "a.b['0']", "value": 2}]
+        }
         with self.assertRaises(Exception) as error:
             self._plugin.run(task_vars=task_vars)
         self.assertIn(
@@ -285,63 +308,64 @@ class TestUpdate_Fact(unittest.TestCase):
             "not long enough for item #2 to be set", str(error.exception)
         )
 
-    # def test_not_mutable_sequence_or_mapping(self):
-    #     """Confirm graceful fail when immutable object
-    #     This should never happen in the real world
-    #     """
-    #     obj = {"a": frozenset([1, 2, 3])}
-    #     path = ["a", 0]
-    #     val = 9
-    #     with self.assertRaises(Exception) as error:
-    #         self._plugin.set_value(obj, path, val)
-    #     self.assertIn("can only modify mutable objects", str(error.exception))
+    def test_not_mutable_sequence_or_mapping(self):
+        """Confirm graceful fail when immutable object
+        This should never happen in the real world
+        """
+        obj = {"a": frozenset([1, 2, 3])}
+        path = ["a", 0]
+        val = 9
+        with self.assertRaises(Exception) as error:
+            self._plugin.set_value(obj, path, val)
+        self.assertIn("can only modify mutable objects", str(error.exception))
 
-    # def test_run_not_dotted_success_one(self):
-    #     """Test with a not dotted key"""
-    #     task_vars = {"vars": {"a": 0}}
-    #     expected = copy.deepcopy(task_vars["vars"])
-    #     expected["a"] = 1
-    #     expected.update({"changed": True})
-    #     self._plugin._task.args = {"a": 1}
-    #     result = self._plugin.run(task_vars=task_vars)
-    #     self.assertEqual(result, expected)
+    def test_run_not_dotted_success_one(self):
+        """Test with a not dotted key"""
+        task_vars = {"vars": {"a": 0}}
+        expected = copy.deepcopy(task_vars["vars"])
+        expected["a"] = 1
+        expected.update({"changed": True})
+        self._plugin._task.args = {"updates": [{"path": "a", "value": 1}]}
+        result = self._plugin.run(task_vars=task_vars)
+        self.assertEqual(result, expected)
 
-    # def test_run_not_dotted_success_three(self):
-    #     """Test with a not dotted key longer"""
-    #     task_vars = {"vars": {"abc": 0}}
-    #     self._plugin._task.args = {"abc": 1}
-    #     result = self._plugin.run(task_vars=task_vars)
-    #     expected = task_vars["vars"]
-    #     expected["abc"] = 1
-    #     expected.update({"changed": True})
-    #     self.assertEqual(result, expected)
+    def test_run_not_dotted_success_three(self):
+        """Test with a not dotted key longer"""
+        task_vars = {"vars": {"abc": 0}}
+        expected = copy.deepcopy(task_vars["vars"])
+        expected["abc"] = 1
+        expected.update({"changed": True})
+        self._plugin._task.args = {"updates": [{"path": "abc", "value": 1}]}
+        result = self._plugin.run(task_vars=task_vars)
+        self.assertEqual(result, expected)
 
-    # def test_run_not_dotted_fail_missing(self):
-    #     """Test with a not dotted key, missing"""
-    #     task_vars = {"vars": {"abc": 0}}
-    #     self._plugin._task.args = {"123": 0}
-    #     with self.assertRaises(Exception) as error:
-    #         self._plugin.run(task_vars=task_vars)
-    #     self.assertIn(
-    #         "'123' was not found in the current facts", str(error.exception)
-    #     )
+    def test_run_not_dotted_fail_missing(self):
+        """Test with a not dotted key, missing"""
+        task_vars = {"vars": {"abc": 0}}
+        self._plugin._task.args = {"updates": [{"path": "123", "value": 1}]}
+        with self.assertRaises(Exception) as error:
+            self._plugin.run(task_vars=task_vars)
+        self.assertIn(
+            "'123' was not found in the current facts", str(error.exception)
+        )
 
-    # def test_run_not_dotted_success_same(self):
-    #     """Test with a not dotted key, no change"""
-    #     task_vars = {"vars": {"a": 0}}
-    #     expected = copy.deepcopy(task_vars["vars"])
-    #     expected.update({"changed": False})
-    #     self._plugin._task.args = {"a": 0}
-    #     result = self._plugin.run(task_vars=task_vars)
-    #     self.assertEqual(result, expected)
+    def test_run_not_dotted_success_same(self):
+        """Test with a not dotted key, no change"""
+        task_vars = {"vars": {"a": 0}}
+        expected = copy.deepcopy(task_vars["vars"])
+        expected.update({"changed": False})
+        self._plugin._task.args = {"updates": [{"path": "a", "value": 0}]}
+        result = self._plugin.run(task_vars=task_vars)
+        self.assertEqual(result, expected)
 
-    # def test_run_looks_like_a_bool(self):
-    #     """Test with a key that looks like a bool"""
-    #     task_vars = {"vars": {"a": {"True": 0}}}
-    #     expected = copy.deepcopy(task_vars["vars"])
-    #     expected["a"]["True"] = 1
-    #     expected.update({"changed": True})
-
-    #     self._plugin._task.args = {"a['True']": 1}
-    #     result = self._plugin.run(task_vars=task_vars)
-    #     self.assertEqual(result, expected)
+    def test_run_looks_like_a_bool(self):
+        """Test with a key that looks like a bool"""
+        task_vars = {"vars": {"a": {"True": 0}}}
+        expected = copy.deepcopy(task_vars["vars"])
+        expected["a"]["True"] = 1
+        expected.update({"changed": True})
+        self._plugin._task.args = {
+            "updates": [{"path": "a['True']", "value": 1}]
+        }
+        result = self._plugin.run(task_vars=task_vars)
+        self.assertEqual(result, expected)

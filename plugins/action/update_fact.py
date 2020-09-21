@@ -182,28 +182,20 @@ class ActionModule(ActionBase):
         self._ensure_valid_jinja()
         for entry in self._task.args["updates"]:
             parts = self._field_split(entry["path"])
-            if len(parts) == 1:
-                obj = parts[0]
-                results.add(obj)
-                if obj not in task_vars["vars"]:
-                    msg = "'{obj}' was not found in the current facts.".format(
-                        obj=obj
-                    )
-                    raise AnsibleActionFail(msg)
-                retrieved = task_vars["vars"].get(obj)
-                if retrieved != entry["value"]:
+            obj, path = parts[0], parts[1:]
+            results.add(obj)
+            if obj not in task_vars["vars"]:
+                msg = "'{obj}' was not found in the current facts.".format(
+                    obj=obj
+                )
+                raise AnsibleActionFail(msg)
+            retrieved = task_vars["vars"].get(obj)
+            if path:
+                self.set_value(retrieved, path, entry["value"])
+            else:
+                if task_vars["vars"][obj] != entry["value"]:
                     task_vars["vars"][obj] = entry["value"]
                     self._result["changed"] = True
-            else:
-                obj, path = parts[0], parts[1:]
-                results.add(obj)
-                if obj not in task_vars["vars"]:
-                    msg = "'{obj}' was not found in the current facts.".format(
-                        obj=obj
-                    )
-                    raise AnsibleActionFail(msg)
-                retrieved = task_vars["vars"].get(obj)
-                self.set_value(retrieved, path, entry["value"])
 
         for key in results:
             value = task_vars["vars"].get(key)

@@ -103,7 +103,7 @@ class ActionModule(ActionBase):
         if rest:
             try:
                 new_obj = obj[first]
-            except KeyError:
+            except (KeyError, TypeError):
                 msg = (
                     "Error: the key '{first}' was not found "
                     "in {obj}.".format(obj=obj, first=first)
@@ -142,11 +142,11 @@ class ActionModule(ActionBase):
         self._task.diff = False
         self._result = super(ActionModule, self).run(tmp, task_vars)
         self._result["changed"] = False
-        self._check_argspec()
+        # self._check_argspec()
         results = set()
         self._ensure_valid_jinja()
-        for key, value in self._task.args.items():
-            parts = self._field_split(key)
+        for entry in self._task.args['updates']:
+            parts = self._field_split(entry['path'])
             if len(parts) == 1:
                 obj = parts[0]
                 results.add(obj)
@@ -156,8 +156,8 @@ class ActionModule(ActionBase):
                     )
                     raise AnsibleModuleError(msg)
                 retrieved = task_vars["vars"].get(obj)
-                if retrieved != value:
-                    task_vars["vars"][obj] = value
+                if retrieved != entry['value']:
+                    task_vars["vars"][obj] = entry['value']
                     self._result["changed"] = True
             else:
                 obj, path = parts[0], parts[1:]
@@ -168,7 +168,7 @@ class ActionModule(ActionBase):
                     )
                     raise AnsibleModuleError(msg)
                 retrieved = task_vars["vars"].get(obj)
-                self.set_value(retrieved, path, value)
+                self.set_value(retrieved, path, entry['value'])
 
         for key in results:
             value = task_vars["vars"].get(key)
